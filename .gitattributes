@@ -1,0 +1,11 @@
+# PowerShell 5.1 scripts keep their UTF-8 BOM and Windows line endings.
+*.ps1 text eol=crlf
+*.md text eol=lf
+*.json text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Translation files are hashed in manifest.json: store them byte for byte (UTF-8 BOM, CRLF).
+*.dat -text
+*.dict -text
+learn-panel/**/*.txt -text

@@ -1,0 +1,43 @@
+{
+    "schema":  1,
+    "name":  "AdobeAudition-RU",
+    "version":  "0.1.0-beta",
+    "tag":  "v0.1.0-beta",
+    "language":  "ru_RU",
+    "translatedFor":  "26.5.0.82",
+    "minAudition":  "26.0",
+    "files":  [
+                  {
+                      "path":  "ru_RU/zdictionary_AUDT_ru_RU.dat",
+                      "type":  "dictionary",
+                      "target":  "dict/ru_RU/zdictionary_AUDT_ru_RU.dat",
+                      "baseline":  "dict/en_US/zdictionary_AUDT_en_US.dat",
+                      "size":  1618568,
+                      "sha256":  "FB3592FA4F1445EDA3689C5829A7C8CFD522FD116612C2363C18BDEAD9BE738B"
+                  },
+                  {
+                      "path":  "ru_RU/dva_ru_RU.dict",
+                      "type":  "dictionary",
+                      "target":  "dict/ru_RU/dva_ru_RU.dict",
+                      "baseline":  "dict/en_US/dva_en_US.dict",
+                      "size":  777933,
+                      "sha256":  "A79135441C937FAE42142B6D688C5FEACDBD00B5E8E08A450FD74D6BC2F9A63E"
+                  },
+                  {
+                      "path":  "learn-panel/content/ru_ru/stringtable.txt",
+                      "type":  "learn-content",
+                      "target":  "CEP/extensions/com.adobe.audition.Onboarding/content/Content/C8C75B3C-05EF-4A2B-8FA9-DB1E1E7271CF/ru_ru/stringtable.txt",
+                      "baseline":  null,
+                      "size":  18369,
+                      "sha256":  "9B5CAD9041579DBB8242932C6E1723B806F42D3A980067C21263A4A80B44A479"
+                  },
+                  {
+                      "path":  "learn-panel/surfaces/ru_ru/stringtable.txt",
+                      "type":  "learn-surfaces",
+                      "target":  "CEP/extensions/com.adobe.audition.Onboarding/surfaces/ru_ru/stringtable.txt",
+                      "baseline":  null,
+                      "size":  2662,
+                      "sha256":  "46FB8A18D56D7273D560FD6BD7E011FB0A22DE8921D362D070F326448B2277A0"
+                  }
+              ]
+}

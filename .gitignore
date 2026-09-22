@@ -1,0 +1,13 @@
+# Release build output and temporary test folders
+/out/
+/tmp/
+
+# Local working memory and notes; never published
+/.ai/
+/doc/
+
+# Operating-system metadata and transient logs
+*.log
+Thumbs.db
+Desktop.ini
+.DS_Store
