@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3-beta — 2026-09-23
+
+- Installation puts the Russian language menu into the Audition folder: `AdobeAudition-RU\AdobeAudition-RU.cmd` and a copy of `Install-AuditionRU.ps1`. Double-click it later to switch the language, update or remove the Russian language, without downloading the script again. The copy configures the Audition in whose folder it is. Both files are recorded in `state.json` and removed with the Russian language.
+- The copy is taken from the running script itself, also when it runs via `irm | iex` without a file.
+- If the administrator window closes right away, the first window now waits for a key so that the antivirus note can be read.
+- The translation is unchanged.
+
 ## 0.1.2-beta — 2026-09-23
 
 - Fixed: Avast blocked `powershell.exe` as `IDP.HELU.PSE91` (*detected in the command line*) when the script restarted itself with administrator rights. The restart used `-EncodedCommand`, which antivirus heuristics treat as a sign of malware. The script now restarts with a plain `-File <script> <parameters>` command.

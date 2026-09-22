@@ -31,6 +31,8 @@ Or download [`Install-AuditionRU.ps1`](https://github.com/coinman-dev/AdobeAudit
 
 Close Adobe Audition before installing or switching the language.
 
+Installation puts the Russian language menu into the Audition folder: `AdobeAudition-RU\AdobeAudition-RU.cmd` (usually `C:\Program Files\Adobe\Adobe Audition 2026\AdobeAudition-RU\AdobeAudition-RU.cmd`). Double-click it to switch the language, update the translation or remove the Russian language. There is no need to download the script again.
+
 If your antivirus blocks `powershell.exe`, see [Antivirus](#antivirus).
 
 ## How it works
@@ -55,9 +57,10 @@ Nothing is deleted. Previous files and settings are kept in `<Audition folder>\A
 
 - `backup\AuApplication.dll` — the original DLL;
 - `backup\dict\...`, `backup\HelpCfg\...` — files that were in place of the Russian ones (for example from an installer with a Russian substitute);
-- `state.json` — the original language, the installed files and their SHA256.
+- `state.json` — the original language, the installed files and their SHA256;
+- `AdobeAudition-RU.cmd` and `Install-AuditionRU.ps1` — the Russian language menu: a copy of the script that did the installation. The copy configures the Audition in whose folder it is.
 
-**Remove the Russian language** (`-Action Restore`) puts back the original DLL, the previous language and the previous files, then deletes the `AdobeAudition-RU` folder. Files changed after installation are left alone.
+**Remove the Russian language** (`-Action Restore`) puts back the original DLL, the previous language and the previous files, then deletes the `AdobeAudition-RU` folder together with the menu. Files changed after installation are left alone.
 
 After an Audition update the new `AuApplication.dll` is unpatched. The menu shows this on the *DLL patch* line; run the installation again.
 
@@ -95,7 +98,7 @@ The script's code is open, the translation files are verified by SHA256, and *Re
 | `-Action Switch -Language en_US` | switch the language: `ru_RU`, `en_US` or another installed one |
 | `-Action Restore` | remove the Russian language and restore everything |
 | `-Action Status` | show the state (no administrator rights needed) |
-| `-AuditionPath <folder>` | Audition folder, when there are several or the path is non-standard |
+| `-AuditionPath <folder>` | Audition folder, when there are several or the path is non-standard (the copy in an Audition folder uses that one) |
 | `-Release v1.0.0` | a specific release instead of the latest |
 | `-Source <folder>` | take files from a local folder with `manifest.json` |
 | `-LearnPanel` | also install the Learn panel translation (enables `PlayerDebugMode`, see below) |
@@ -110,6 +113,8 @@ Examples:
 .\Install-AuditionRU.ps1 -Action Switch -Language en_US
 .\Install-AuditionRU.ps1 -Action Restore
 ```
+
+`AdobeAudition-RU.cmd` in the Audition folder takes the same parameters.
 
 ## Learn panel
 

@@ -31,6 +31,8 @@ irm https://github.com/coinman-dev/AdobeAudition-RU/releases/latest/download/Ins
 
 Перед установкой и переключением языка закройте Adobe Audition.
 
+Установка кладёт меню русификатора в папку Audition: `AdobeAudition-RU\AdobeAudition-RU.cmd` (обычно `C:\Program Files\Adobe\Adobe Audition 2026\AdobeAudition-RU\AdobeAudition-RU.cmd`). Запустите его двойным щелчком, чтобы переключить язык, обновить перевод или удалить русификатор. Скачивать скрипт заново не нужно.
+
 Если антивирус заблокировал `powershell.exe`, см. раздел [Антивирус](#антивирус).
 
 ## Как это устроено
@@ -55,9 +57,10 @@ irm https://github.com/coinman-dev/AdobeAudition-RU/releases/latest/download/Ins
 
 - `backup\AuApplication.dll` — исходная DLL;
 - `backup\dict\...`, `backup\HelpCfg\...` — файлы, которые лежали на месте русских (например, из установщика с русской подменой);
-- `state.json` — исходный язык, список установленных файлов и их SHA256.
+- `state.json` — исходный язык, список установленных файлов и их SHA256;
+- `AdobeAudition-RU.cmd` и `Install-AuditionRU.ps1` — меню русификатора: копия скрипта, которым выполнялась установка. Копия настраивает Audition, в папке которого лежит.
 
-Пункт меню **«Удалить русификатор»** (`-Action Restore`) возвращает исходную DLL, прежний язык и прежние файлы, а затем удаляет папку `AdobeAudition-RU`. Изменённые после установки файлы он не трогает.
+Пункт меню **«Удалить русификатор»** (`-Action Restore`) возвращает исходную DLL, прежний язык и прежние файлы, а затем удаляет папку `AdobeAudition-RU` вместе с меню. Изменённые после установки файлы он не трогает.
 
 После обновления Audition новая `AuApplication.dll` будет без исправления. Меню покажет это в строке «Исправление DLL»; запустите установку ещё раз.
 
@@ -95,7 +98,7 @@ irm https://github.com/coinman-dev/AdobeAudition-RU/releases/latest/download/Ins
 | `-Action Switch -Language en_US` | переключить язык: `ru_RU`, `en_US` или другой установленный |
 | `-Action Restore` | удалить русификатор и вернуть всё как было |
 | `-Action Status` | показать состояние (права администратора не нужны) |
-| `-AuditionPath <папка>` | папка Audition, если их несколько или путь нестандартный |
+| `-AuditionPath <папка>` | папка Audition, если их несколько или путь нестандартный (копия в папке Audition берёт свою) |
 | `-Release v1.0.0` | конкретный релиз вместо последнего |
 | `-Source <папка>` | взять файлы из локальной папки с `manifest.json` |
 | `-LearnPanel` | установить также перевод обучающей панели (включает `PlayerDebugMode`, см. ниже) |
@@ -110,6 +113,8 @@ irm https://github.com/coinman-dev/AdobeAudition-RU/releases/latest/download/Ins
 .\Install-AuditionRU.ps1 -Action Switch -Language en_US
 .\Install-AuditionRU.ps1 -Action Restore
 ```
+
+Те же параметры принимает `AdobeAudition-RU.cmd` из папки Audition.
 
 ## Обучающая панель
 

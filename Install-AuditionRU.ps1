@@ -22,6 +22,8 @@
     «Удалить русификатор» возвращает всё как было.
 
     Запуск без параметров открывает меню и сам запрашивает права администратора.
+    Установка кладёт в <Audition>\AdobeAudition-RU копию скрипта и AdobeAudition-RU.cmd:
+    оттуда потом открывают меню, чтобы переключить язык или удалить русификатор.
 
     Adds a real Russian interface language (ru_RU) to an installed Adobe Audition, not
     Russian text in the slot of another language. Translation files come from GitHub
@@ -31,6 +33,8 @@
     is set in AMT\application.xml. Nothing is deleted: replaced files are kept in
     <Audition>\AdobeAudition-RU\backup, and "Remove" restores everything.
     Without parameters the script opens a menu and asks for administrator rights itself.
+    Installation also puts a copy of the script and AdobeAudition-RU.cmd into
+    <Audition>\AdobeAudition-RU: run it later to switch the language or remove Russian.
 
 .EXAMPLE
     .\Install-AuditionRU.ps1
@@ -76,7 +80,8 @@ param(
     # Язык для -Action Switch: ru_RU, en_US, de_DE и т.д.
     [string]$Language,
 
-    # Папка Audition (где лежит «Adobe Audition.exe»). По умолчанию ищется сама.
+    # Папка Audition (где лежит «Adobe Audition.exe»). По умолчанию ищется сама, а копия скрипта
+    # в <Audition>\AdobeAudition-RU настраивает свой Audition.
     [string]$AuditionPath,
 
     # Папка с manifest.json и файлами перевода (клон репозитория). Без загрузки из сети.
@@ -269,6 +274,8 @@ function Restart-Elevated {
         Write-Host ''
         Write-Note (T "Окно администратора сразу закрылось (код $code). Если антивирус сообщил об угрозе в powershell.exe, это ложное срабатывание." "The administrator window closed right away (exit code $code). If your antivirus reported a threat in powershell.exe, it is a false positive.")
         Write-Note (T 'Откройте PowerShell от имени администратора и выполните команду в нём: тогда скрипту не нужно перезапускаться.' 'Open PowerShell as administrator and run the command there: then the script does not need to restart.')
+        # Запуск из AdobeAudition-RU.cmd или «Выполнить с помощью PowerShell»: окно не должно закрыться сразу.
+        $script:PauseOnExit = $true
     }
 }
 
@@ -527,9 +534,13 @@ function Find-Auditions {
 }
 
 function Select-Audition {
-    if ($AuditionPath) {
-        $info = Get-AuditionInfo -Dir ([IO.Path]::GetFullPath($AuditionPath).TrimEnd('\'))
-        if (-not $info) { throw (T "В папке «$AuditionPath» нет Adobe Audition.exe." "'$AuditionPath' does not contain Adobe Audition.exe.") }
+    $path = $AuditionPath
+    # Скрипт запущен из <Audition>\AdobeAudition-RU (копия, которую кладёт установка) — этот Audition.
+    if (-not $path -and $script:ScriptRoot -and (Split-Path $script:ScriptRoot -Leaf) -eq $script:StateFolder -and
+        (Test-Path -LiteralPath (Join-Path (Split-Path $script:ScriptRoot) 'Adobe Audition.exe'))) { $path = Split-Path $script:ScriptRoot }
+    if ($path) {
+        $info = Get-AuditionInfo -Dir ([IO.Path]::GetFullPath($path).TrimEnd('\'))
+        if (-not $info) { throw (T "В папке «$path» нет Adobe Audition.exe." "'$path' does not contain Adobe Audition.exe.") }
         if (-not $info.Supported) { throw (T "Эта копия Audition не поддерживается: $($info.Reason)." "This Audition copy is not supported: $($info.Reason).") }
         return $info
     }
@@ -893,6 +904,44 @@ function Remove-PublishedFiles {
     $State.files = $keep
 }
 
+# Текст этого скрипта. При «irm | iex» файла нет, поэтому берётся корень AST, в котором
+# разобран скрипт: это весь исходный текст при любом способе запуска.
+function Get-ScriptText {
+    $ast = {}.Ast
+    while ($ast.Parent) { $ast = $ast.Parent }
+    $ast.Extent.Text
+}
+
+# Запуск меню двойным щелчком. «Удалить русификатор» удаляет и этот файл, а cmd после команды
+# снова читает пакетный файл («Не удается найти пакетный файл»). «(goto) 2>nul» завершает
+# пакетный файл заранее: строка уже разобрана (%~dp0 и %* подставлены) и выполняется до конца.
+function Get-LauncherText {
+    @(
+        '@echo off'
+        'rem AdobeAudition-RU: install, switch the language or remove the Russian language of Adobe Audition.'
+        '(goto) 2>nul & "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-AuditionRU.ps1" %*'
+    ) -join "`r`n"
+}
+
+# Копия скрипта и AdobeAudition-RU.cmd в <Audition>\AdobeAudition-RU: оттуда потом переключают
+# язык и удаляют русификатор. Записываются в state.json и удаляются вместе с русификатором.
+function Install-ScriptCopy {
+    param($Install, $State)
+    $text = Get-ScriptText
+    # ASCII-копия из релиза остаётся байт в байт как в релизе; текст с кириллицей — UTF-8 с BOM.
+    $encoding = if ($text -match '[^\x00-\x7F]') { New-Object Text.UTF8Encoding $true } else { [Text.Encoding]::ASCII }
+    $files = @(
+        @{ Name = 'Install-AuditionRU.ps1'; Text = $text; Encoding = $encoding }
+        @{ Name = "$($script:ToolName).cmd"; Text = (Get-LauncherText); Encoding = [Text.Encoding]::ASCII }
+    )
+    foreach ($f in $files) {
+        $tmp = Join-Path $script:WorkTemp $f.Name
+        [IO.File]::WriteAllText($tmp, $f.Text, $f.Encoding)
+        Publish-File -Install $Install -State $State -Target (Join-Path $script:StateFolder $f.Name) -TempPath $tmp -Group 'tool'
+    }
+    Join-Path (Get-StateDir $Install) "$($script:ToolName).cmd"
+}
+
 #endregion
 
 #region Learn panel (CEP)
@@ -1091,7 +1140,12 @@ function Invoke-Install {
             }
         }
 
-        # 5. Язык интерфейса.
+        # 5. Меню русификатора в папке Audition. Без него русский язык работает, поэтому ошибка не прерывает установку.
+        $launcher = $null
+        try { $launcher = Install-ScriptCopy -Install $Install -State $state }
+        catch { Write-Note (T "Не удалось сохранить меню русификатора в папке Audition: $($_.Exception.Message)" "Could not save the Russian language menu to the Audition folder: $($_.Exception.Message)") }
+
+        # 6. Язык интерфейса.
         Set-AmtLanguage -Dir $Install.Path -Locale 'ru_RU'
         $state.packVersion = [string]$m.version
         $state.auditionVersion = [string]$Install.Version
@@ -1103,6 +1157,11 @@ function Invoke-Install {
     Write-Host ''
     Write-Ok (T "Готово. Запустите Adobe Audition — интерфейс будет на русском." "Done. Start Adobe Audition - the interface will be in Russian.")
     Write-Note (T 'Первый запуск после смены языка дольше обычного: Audition заново проверяет плагины.' 'The first start after a language change is slower: Audition rescans plug-ins.')
+    if ($launcher) {
+        Write-Host ''
+        Write-Host (T '  Переключить язык или удалить русификатор — запустите:' '  To switch the language or remove the Russian language, run:') -ForegroundColor Cyan
+        Write-Host "    $launcher" -ForegroundColor Cyan
+    }
 }
 
 function Get-AvailableLocales {

@@ -38,6 +38,9 @@ $script:CacheRoot = Join-Path $tmp 'cache'
 $Yes = $true; $Source = $null; $Release = 'latest'; $LearnPanel = $false; $NoPause = $true; $AuditionPath = $null
 function Set-PlayerDebugMode { param($Install, $State, [switch]$Undo) $script:pdm += @(if ($Undo) { 'undo' } else { 'set' }) }
 $script:pdm = @()
+# Функции здесь созданы по отдельности, корень AST у них — сама функция: текст скрипта подставляем.
+$script:installerText = [Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
+function Get-ScriptText { $script:installerText }
 
 try {
     # --- Словари -------------------------------------------------------------------------
@@ -120,6 +123,24 @@ $lines = foreach ($k in $PSBoundParameters.Keys) { "$k=$($PSBoundParameters[$k])
     $said = (& { Restart-Elevated -Parameters @{ Action = 'Install' } } 6>&1 | Out-String)
     Assert ($said -notmatch 'antivirus') 'No antivirus note when the administrator window finishes without an error'
     Remove-Item Function:\Start-Process
+
+    # --- Копия скрипта и AdobeAudition-RU.cmd ------------------------------------------------
+    $fn = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-ScriptText' }, $true).Extent.Text
+    $sample = "<# help #>`r`n[CmdletBinding()]`r`nparam([string]`$X)`r`n$fn`r`nGet-ScriptText`r`n# tail`r`n"
+    Assert ((& { Invoke-Expression $sample }) -ceq $sample) 'Get-ScriptText returns the whole script text when it runs from text ("irm | iex")'
+    # «Удалить русификатор», запущенный из AdobeAudition-RU.cmd, удаляет и сам .cmd: cmd не должен ругаться.
+    $launchDir = Join-Path $tmp 'launcher'
+    $null = New-Item -ItemType Directory -Force -Path $launchDir
+    [IO.File]::WriteAllText((Join-Path $launchDir 'AdobeAudition-RU.cmd'), (Get-LauncherText), [Text.Encoding]::ASCII)
+    [IO.File]::WriteAllText((Join-Path $launchDir 'Install-AuditionRU.ps1'), "param([string]`$Action)`r`nRemove-Item -LiteralPath (Join-Path `$PSScriptRoot 'AdobeAudition-RU.cmd'), `$PSCommandPath -Force`r`n`"deleted `$Action`"`r`n", [Text.Encoding]::ASCII)
+    function Invoke-Launcher { param([string]$Path, [string]$Arguments)
+        $si = New-Object Diagnostics.ProcessStartInfo $Path, $Arguments
+        $si.UseShellExecute = $false; $si.CreateNoWindow = $true; $si.RedirectStandardOutput = $true; $si.RedirectStandardError = $true
+        $p = [Diagnostics.Process]::Start($si); $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEnd(); $p.WaitForExit()
+        [pscustomobject]@{ Out = $o.Result; Err = $e; Code = $p.ExitCode }
+    }
+    $run = Invoke-Launcher (Join-Path $launchDir 'AdobeAudition-RU.cmd') '-Action Restore'
+    Assert ($run.Out -match 'deleted Restore' -and -not $run.Err.Trim() -and -not @(Get-ChildItem -LiteralPath $launchDir).Count) 'AdobeAudition-RU.cmd passes the parameters and exits cleanly when the script deletes it'
 
     # --- Копия скрипта для релиза: «irm | iex» ----------------------------------------------
     $release = Join-Path $root "out\release\v$($m.version)"
@@ -222,6 +243,13 @@ $lines = foreach ($k in $PSBoundParameters.Keys) { "$k=$($PSBoundParameters[$k])
         Assert (@($enKeys | Where-Object { -not $ruInst.Map.ContainsKey($_) }).Count -eq 0 -and $ruInst.Order.Count -eq $enKeys.Count + 3) 'The installed dictionary has every key of this Audition version plus the licensing menu strings'
         Assert ((Get-ChildItem -LiteralPath (Join-Path $fake 'HelpCfg\ru_RU') -Filter *.helpcfg).Count -ge 1 -and (Get-Content -Raw -LiteralPath (Get-ChildItem (Join-Path $fake 'HelpCfg\ru_RU\*.helpcfg'))[0].FullName) -match 'helpmapPath="ru/') 'HelpCfg\ru_RU points to the Russian help'
         Assert ($state.originalLanguage -eq 'en_US' -and $state.packVersion -eq $m.version) 'The state remembers the original language and the translation version'
+        $copy = Join-Path $fake 'AdobeAudition-RU\Install-AuditionRU.ps1'; $cmdFile = Join-Path $fake 'AdobeAudition-RU\AdobeAudition-RU.cmd'
+        $cb = [IO.File]::ReadAllBytes($copy)
+        Assert ($cb[0] -eq 0xEF -and [Text.Encoding]::UTF8.GetString($cb, 3, $cb.Length - 3) -ceq $script:installerText -and (Get-Content -Raw -LiteralPath $cmdFile) -ceq (Get-LauncherText)) 'Install puts a copy of the script (UTF-8 with BOM when it has Cyrillic) and AdobeAudition-RU.cmd into AdobeAudition-RU'
+        Assert (@($state.files | Where-Object { $_.group -eq 'tool' }).Count -eq 2) 'The script copy and the launcher are recorded in state.json'
+        # Копия сама находит Audition, в папке которого лежит (без -AuditionPath); Status — только чтение.
+        $run = Invoke-Launcher $cmdFile '-Action Status -NoPause -UILang en'
+        Assert ($run.Out -match "Folder:\s+$([regex]::Escape($fake))\r?\n" -and $run.Out -match "Russian language:\s+installed, version $([regex]::Escape($m.version))") 'AdobeAudition-RU.cmd opens the script copy for its own Audition folder'
         if (Test-Path -LiteralPath (Join-Path $fake "$onb\surfaces\en_us")) {
             Assert (Test-Path -LiteralPath (Join-Path $fake "$onb\surfaces\ru_ru\stringtable.txt")) 'The Learn panel translation is installed on request'
             Assert ($script:pdm -contains 'set') 'Installing the Learn panel enables PlayerDebugMode (CEP rejects the modified signed panel otherwise)'
