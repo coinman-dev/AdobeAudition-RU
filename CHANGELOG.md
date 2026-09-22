@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0 — 2026-09-23
+
+First stable release. The script and the translation are the same as in 0.1.3-beta. Install, language switch, removal and the menu in the Audition folder were verified on a real Audition 26.5 installation, including the one-line install (`irm | iex`) with Avast running.
+
 ## 0.1.3-beta — 2026-09-23
 
 - Installation puts the Russian language menu into the Audition folder: `AdobeAudition-RU\AdobeAudition-RU.cmd` and a copy of `Install-AuditionRU.ps1`. Double-click it later to switch the language, update or remove the Russian language, without downloading the script again. The copy configures the Audition in whose folder it is. Both files are recorded in `state.json` and removed with the Russian language.
