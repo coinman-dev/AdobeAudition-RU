@@ -123,5 +123,7 @@ gh release create v1.0.0 "out\release\v1.0.0\*" --title v1.0.0 --notes-file CHAN
 
 Файлы словарей хранятся в Git как двоичные (`.gitattributes`), чтобы их SHA256 совпадали с `manifest.json`.
 
+`Install-AuditionRU.ps1` в репозитории — UTF-8 с BOM. В релиз `New-Release.ps1` кладёт его копию только из ASCII-символов: русский текст в строках записан кодами символов, русских комментариев нет. Иначе `irm | iex` не работает: Windows PowerShell 5.1 читает файл из GitHub Releases как Latin-1, и ни 5.1, ни 7 не пропускают BOM.
+
 ---
 Adobe и Adobe Audition — товарные знаки Adobe. Проект не связан с Adobe.

@@ -123,5 +123,7 @@ gh release create v1.0.0 "out\release\v1.0.0\*" --title v1.0.0 --notes-file CHAN
 
 Dictionary files are stored in Git as binary (`.gitattributes`) so their SHA256 matches `manifest.json`.
 
+`Install-AuditionRU.ps1` in the repository is UTF-8 with a BOM. `New-Release.ps1` puts an ASCII-only copy of it into the release: Russian text in strings is written as character codes, and Russian comments are left out. Otherwise `irm | iex` fails: Windows PowerShell 5.1 reads files from GitHub Releases as Latin-1, and neither 5.1 nor 7 skips the BOM.
+
 ---
 Adobe and Adobe Audition are trademarks of Adobe. This project is not affiliated with Adobe.

@@ -86,8 +86,27 @@ try {
     [IO.File]::WriteAllText($evil, ((Get-Content -Raw (Join-Path $root 'manifest.json')) -replace '"dict/ru_RU/dva_ru_RU.dict"', '"../../Windows/evil.dll"'))
     Assert-Throws { Read-Manifest $evil } 'Manifest paths that leave the Audition folder are rejected'
 
-    # --- Загрузка релиза: сеть заменена копированием из out\release -------------------------
+    # --- Копия скрипта для релиза: «irm | iex» ----------------------------------------------
     $release = Join-Path $root "out\release\v$($m.version)"
+    $releaseScript = Join-Path $release 'Install-AuditionRU.ps1'
+    # Запуск как «irm | iex»: текст скрипта в отдельном пространстве выполнения, вывод Write-Host.
+    function Invoke-ReleaseScript { param([string]$Text, [hashtable]$Parameters)
+        $ps = [powershell]::Create()
+        try { $null = $ps.AddScript($Text).AddParameters($Parameters).Invoke(); @($ps.Streams.Information | ForEach-Object { [string]$_.MessageData }) -join "`n" } finally { $ps.Dispose() }
+    }
+    if (Test-Path -LiteralPath $releaseScript) {
+        $rb = [IO.File]::ReadAllBytes($releaseScript)
+        Assert (-not @($rb | Where-Object { $_ -gt 0x7F }).Count) 'The release copy of the script is plain ASCII: "irm" reads GitHub downloads as Latin-1 (PowerShell 5.1) or UTF-8 (7.4) and keeps a BOM'
+        # Так текст получает «irm» в Windows PowerShell 5.1.
+        $releaseText = [Text.Encoding]::GetEncoding(28591).GetString($rb)
+        Assert ($releaseText -match "source SHA256 $(Get-Sha256 (Join-Path $root 'Install-AuditionRU.ps1'))\b") 'The release copy is built from the current Install-AuditionRU.ps1 (run tools\New-Release.ps1 after changes)'
+        $null = [Management.Automation.Language.Parser]::ParseInput($releaseText, [ref]$tokens, [ref]$errors)
+        Assert (-not $errors.Count) 'The release copy parses as downloaded by irm'
+        $said = Invoke-ReleaseScript $releaseText @{ Action = 'Status'; UILang = 'ru'; AuditionPath = (Join-Path $tmp 'no-audition'); NoPause = $true }
+        Assert ($said -match 'AdobeAudition-RU — русский язык для Adobe Audition' -and $said -match '✗ В папке «[^»]*no-audition» нет Adobe Audition\.exe\.') 'The release copy runs from text ("irm | iex") and prints Russian messages correctly'
+    } else { Skip 'out\release has no Install-AuditionRU.ps1 - run tools\New-Release.ps1 first' }
+
+    # --- Загрузка релиза: сеть заменена копированием из out\release -------------------------
     if (Test-Path -LiteralPath (Join-Path $release 'manifest.json')) {
         $script:downloads = @()
         function Save-Url { param([string]$Url, [string]$Destination) $script:downloads += $Url; Copy-Item -LiteralPath (Join-Path $release ($Url -replace '^.*/', '')) -Destination $Destination -Force }
@@ -206,6 +225,10 @@ try {
         Assert (-not (Test-Path -LiteralPath (Join-Path $fake "$onb\surfaces\ru_ru"))) 'Restore removes the Learn panel translation'
         Assert (-not (Test-Path -LiteralPath (Join-Path $fake 'AdobeAudition-RU'))) 'Restore removes the state and backup folder'
         Assert ($script:pdm -contains 'undo') 'Restore reverts PlayerDebugMode'
+        if ($releaseText) {
+            $said = Invoke-ReleaseScript $releaseText @{ Action = 'Status'; UILang = 'ru'; AuditionPath = $fake; NoPause = $true }
+            Assert ($said -match 'Язык интерфейса:\s+English \(en_US\)' -and $said -match 'Исправление DLL:\s+не применено \(исходная DLL\)' -and $said -match '─{72}') 'The release copy shows the status of the Audition copy in Russian'
+        }
     } else { Skip "Adobe Audition not found at $auditionDir - DLL and end-to-end checks skipped" }
 } finally {
     Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue

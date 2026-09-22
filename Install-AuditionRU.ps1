@@ -23,30 +23,47 @@
 
     Запуск без параметров открывает меню и сам запрашивает права администратора.
 
+    Adds a real Russian interface language (ru_RU) to an installed Adobe Audition, not
+    Russian text in the slot of another language. Translation files come from GitHub
+    Releases or the folder next to the script and are verified by SHA256; dictionaries
+    are built for the installed Audition version; HelpCfg\ru_RU is created; 2 bytes of
+    AuApplication.dll are patched so that ru_RU is not replaced with en_US; the language
+    is set in AMT\application.xml. Nothing is deleted: replaced files are kept in
+    <Audition>\AdobeAudition-RU\backup, and "Remove" restores everything.
+    Without parameters the script opens a menu and asks for administrator rights itself.
+
 .EXAMPLE
     .\Install-AuditionRU.ps1
     Меню: установить, переключить язык, состояние, удалить.
+    Menu: install, switch language, status, remove.
 
 .EXAMPLE
     .\Install-AuditionRU.ps1 -Action Install -Yes
     Установить русский язык без вопросов.
+    Install Russian without questions.
 
 .EXAMPLE
     .\Install-AuditionRU.ps1 -Action Switch -Language en_US
     Переключить интерфейс на английский (русификатор остаётся установленным).
+    Switch the interface to English (the Russian language stays installed).
 
 .EXAMPLE
     .\Install-AuditionRU.ps1 -Action Restore
     Удалить русификатор и вернуть исходный язык и файлы.
+    Remove the Russian language and restore the original language and files.
 
 .EXAMPLE
     irm https://github.com/coinman-dev/AdobeAudition-RU/releases/latest/download/Install-AuditionRU.ps1 | iex
     Запуск одной командой из PowerShell.
+    Run with one command from PowerShell.
 
 .NOTES
     Требуется Windows PowerShell 5.1 или PowerShell 7 и права администратора
     (запрашиваются автоматически). Перед изменениями Audition нужно закрыть.
     Язык сообщений выбирается по языку Windows, переопределяется ключом -UILang.
+    Requires Windows PowerShell 5.1 or PowerShell 7 and administrator rights (requested
+    automatically). Close Audition before making changes. The message language follows
+    Windows and can be set with -UILang.
 #>
 
 #Requires -Version 5.1

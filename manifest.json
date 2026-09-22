@@ -1,8 +1,8 @@
 {
     "schema":  1,
     "name":  "AdobeAudition-RU",
-    "version":  "0.1.0-beta",
-    "tag":  "v0.1.0-beta",
+    "version":  "0.1.1-beta",
+    "tag":  "v0.1.1-beta",
     "language":  "ru_RU",
     "translatedFor":  "26.5.0.82",
     "minAudition":  "26.0",
