@@ -86,6 +86,41 @@ try {
     [IO.File]::WriteAllText($evil, ((Get-Content -Raw (Join-Path $root 'manifest.json')) -replace '"dict/ru_RU/dva_ru_RU.dict"', '"../../Windows/evil.dll"'))
     Assert-Throws { Read-Manifest $evil } 'Manifest paths that leave the Audition folder are rejected'
 
+    # --- Перезапуск с правами администратора: -File с параметрами ----------------------------
+    # Проверочный скрипт с тем же param(), что у установщика, записывает полученные параметры.
+    $probeDir = Join-Path $tmp "Папка 'с пробелами'"
+    $null = New-Item -ItemType Directory -Force -Path $probeDir
+    $probe = Join-Path $probeDir 'probe.ps1'
+    $probeBody = @'
+$lines = foreach ($k in $PSBoundParameters.Keys) { "$k=$($PSBoundParameters[$k])" }
+[IO.File]::WriteAllLines((Join-Path $PSScriptRoot 'bound.txt'), [string[]]$lines, (New-Object Text.UTF8Encoding $false))
+'@
+    $probeText = (@($ast.ParamBlock.Attributes | ForEach-Object { $_.Extent.Text }) + $ast.ParamBlock.Extent.Text + $probeBody) -join "`r`n"
+    [IO.File]::WriteAllText($probe, $probeText, (New-Object Text.UTF8Encoding $true))
+    $sent = @{ Action = 'Install'; Language = 'ru_RU'; AuditionPath = 'C:\Папка с пробелами\Adobe Audition 2026\'; Release = 'tag \"q" end\'; UILang = 'ru'; Yes = [switch]$true; LearnPanel = [switch]$false }
+    $cmdLine = Get-ElevationArguments -ScriptPath $probe -Parameters $sent
+    Assert ($cmdLine -notmatch 'EncodedCommand' -and $cmdLine.StartsWith('-NoProfile -ExecutionPolicy Bypass -File "')) 'The elevated restart runs the script with -File, not -EncodedCommand (antivirus heuristics block encoded commands)'
+    $psi = New-Object Diagnostics.ProcessStartInfo "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe", $cmdLine
+    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+    $proc = [Diagnostics.Process]::Start($psi); $null = $proc.WaitForExit(60000)
+    $boundFile = Join-Path $probeDir 'bound.txt'
+    $bound = if (Test-Path -LiteralPath $boundFile) { @([IO.File]::ReadAllLines($boundFile) | Sort-Object) -join '|' }
+    $expected = @('Action=Install', 'Language=ru_RU', 'AuditionPath=C:\Папка с пробелами\Adobe Audition 2026\', 'Release=tag \"q" end\', 'UILang=ru', 'Yes=True', 'Elevated=True') | Sort-Object
+    Assert ($bound -ceq ($expected -join '|')) 'After the restart Windows PowerShell gets the same parameters (spaces, Cyrillic, quotes, trailing backslash; switched-off switches omitted)'
+    # Окно администратора сразу закрылось (например, его остановил антивирус): без UAC, процесс-заглушка.
+    function Start-Process { [CmdletBinding()] param($FilePath, $ArgumentList, $Verb, [switch]$PassThru)
+        $si = New-Object Diagnostics.ProcessStartInfo "$env:SystemRoot\System32\cmd.exe", "/c exit $script:fakeExit"
+        $si.UseShellExecute = $false; $si.CreateNoWindow = $true
+        [Diagnostics.Process]::Start($si)
+    }
+    $script:fakeExit = 3
+    $said = (& { Restart-Elevated -Parameters @{ Action = 'Install' } } 6>&1 | Out-String)
+    Assert ($said -match 'closed right away \(exit code 3\)' -and $said -match 'antivirus') 'When the administrator window closes at once with an error, the user is told it may be an antivirus false positive'
+    $script:fakeExit = 0
+    $said = (& { Restart-Elevated -Parameters @{ Action = 'Install' } } 6>&1 | Out-String)
+    Assert ($said -notmatch 'antivirus') 'No antivirus note when the administrator window finishes without an error'
+    Remove-Item Function:\Start-Process
+
     # --- Копия скрипта для релиза: «irm | iex» ----------------------------------------------
     $release = Join-Path $root "out\release\v$($m.version)"
     $releaseScript = Join-Path $release 'Install-AuditionRU.ps1'

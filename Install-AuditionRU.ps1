@@ -214,20 +214,26 @@ function Read-Option {
 
 #region Elevation
 
-function Get-ElevationCommand {
+# Командная строка перезапуска: обычный -File с параметрами. Не -EncodedCommand: закодированную
+# команду антивирусы считают признаком вредоносного скрипта (Avast блокировал powershell.exe
+# с угрозой IDP.HELU.PSE91 «обнаружено в командной строке»).
+function Get-ElevationArguments {
     param([string]$ScriptPath, [Collections.IDictionary]$Parameters)
-    $forward = @{}
+    # Кавычки по правилам разбора командной строки Windows: «\» перед кавычкой удваиваются.
+    $quote = { param([string]$Text) '"' + ($Text -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"' }
+    $list = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (& $quote $ScriptPath))
     foreach ($key in $Parameters.Keys) {
+        if ($key -eq 'Elevated') { continue }
         $value = $Parameters[$key]
-        if ($value -is [switch]) { $value = [bool]$value }
-        $forward[$key] = $value
+        if ($value -is [switch] -or $value -is [bool]) {
+            # «-Ключ:$false» Windows PowerShell с -File не понимает, а выключенный ключ — значение по умолчанию.
+            if ($value) { $list += "-$key" }
+        } else {
+            $list += "-$key"
+            $list += (& $quote ([string]$value))
+        }
     }
-    $forward['Elevated'] = $true
-    $serialized = [Management.Automation.PSSerializer]::Serialize($forward)
-    $payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($serialized))
-    $quotedPath = $ScriptPath.Replace("'", "''")
-    $command = "`$forward = [Management.Automation.PSSerializer]::Deserialize([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('$payload'))); & '$quotedPath' @forward"
-    [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    ($list + '-Elevated') -join ' '
 }
 
 function Restart-Elevated {
@@ -245,17 +251,25 @@ function Restart-Elevated {
     if (-not $hostExe -or $hostExe -notmatch '(pwsh|powershell)\.exe$') {
         $hostExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
     }
-    $encoded = Get-ElevationCommand -ScriptPath $path -Parameters $Parameters
+    $arguments = Get-ElevationArguments -ScriptPath $path -Parameters $Parameters
     Write-Host ''
     Write-Host (T '  Для изменения файлов Adobe Audition нужны права администратора.' '  Administrator rights are required to change Adobe Audition files.') -ForegroundColor Yellow
     Write-Host (T '  Перезапускаю скрипт — подтвердите запрос системы.' '  Restarting the script - please confirm the system prompt.') -ForegroundColor Yellow
     try {
-        Start-Process -FilePath $hostExe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) -Verb RunAs -ErrorAction Stop
+        $process = Start-Process -FilePath $hostExe -ArgumentList $arguments -Verb RunAs -PassThru -ErrorAction Stop
     } catch {
-        throw (T 'Запуск от имени администратора отменён. Откройте PowerShell от имени администратора и запустите скрипт оттуда.' 'Elevation was cancelled. Open PowerShell as administrator and run the script from there.')
+        throw (T 'Запуск от имени администратора отменён или заблокирован. Откройте PowerShell от имени администратора и запустите скрипт оттуда.' 'Elevation was cancelled or blocked. Open PowerShell as administrator and run the script from there.')
     }
     # Дальше работает окно администратора; это окно можно закрыть без паузы.
     $script:PauseOnExit = $false
+    # Окно администратора сразу закрылось с ошибкой — чаще всего его остановил антивирус
+    # (само окно при ошибке ждёт нажатия клавиши).
+    $code = try { if ($process.WaitForExit(10000)) { $process.ExitCode } } catch { $null }
+    if ($null -ne $code -and $code -ne 0) {
+        Write-Host ''
+        Write-Note (T "Окно администратора сразу закрылось (код $code). Если антивирус сообщил об угрозе в powershell.exe, это ложное срабатывание." "The administrator window closed right away (exit code $code). If your antivirus reported a threat in powershell.exe, it is a false positive.")
+        Write-Note (T 'Откройте PowerShell от имени администратора и выполните команду в нём: тогда скрипту не нужно перезапускаться.' 'Open PowerShell as administrator and run the command there: then the script does not need to restart.')
+    }
 }
 
 #endregion

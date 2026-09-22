@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2-beta — 2026-09-23
+
+- Fixed: Avast blocked `powershell.exe` as `IDP.HELU.PSE91` (*detected in the command line*) when the script restarted itself with administrator rights. The restart used `-EncodedCommand`, which antivirus heuristics treat as a sign of malware. The script now restarts with a plain `-File <script> <parameters>` command.
+- If the administrator window closes right away with an error, the first window says that an antivirus may have blocked it and suggests running the command in PowerShell opened as administrator.
+- README: new *Antivirus* section.
+- The tests start Windows PowerShell with the restart command and check that every parameter arrives unchanged.
+- The translation is unchanged.
+
 ## 0.1.1-beta — 2026-09-23
 
 - Fixed: `irm … | iex` failed in Windows PowerShell 5.1 with *Unexpected token* and *Unexpected attribute 'CmdletBinding'*. PowerShell reads a file downloaded from GitHub Releases as Latin-1 (5.1) or UTF-8 (7.4) and does not skip the UTF-8 BOM, so the script header was no longer a comment. The release now ships a plain ASCII copy of `Install-AuditionRU.ps1`: text in other alphabets is written as character codes. The copy works with `irm | iex` and as a downloaded file in Windows PowerShell 5.1 and PowerShell 7.

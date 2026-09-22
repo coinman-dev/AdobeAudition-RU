@@ -31,6 +31,8 @@ Or download [`Install-AuditionRU.ps1`](https://github.com/coinman-dev/AdobeAudit
 
 Close Adobe Audition before installing or switching the language.
 
+If your antivirus blocks `powershell.exe`, see [Antivirus](#antivirus).
+
 ## How it works
 
 Audition has no `.langpack` file and no language menu. Three things decide the language:
@@ -69,6 +71,20 @@ Files come from [GitHub Releases](https://github.com/coinman-dev/AdobeAudition-R
 4. If GitHub is unreachable, the newest verified cache is used.
 
 When the script sits in a repository clone (with `manifest.json` and `ru_RU` next to it), it uses the clone's files, also verified by SHA256.
+
+## Antivirus
+
+The script does things that antivirus behaviour heuristics watch for: it downloads files from the internet, changes files in Program Files (including 2 bytes of a DLL) and restarts PowerShell with administrator rights. An antivirus may therefore take it for malware.
+
+Before 0.1.2-beta the script restarted itself with `powershell.exe -EncodedCommand …`, and Avast blocked that as the threat `IDP.HELU.PSE91` (*detected in the command line*). The restart is now a plain `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <script path> <parameters>` command, which did not trigger Avast in testing.
+
+If your antivirus still blocks it:
+
+- Open PowerShell as administrator (Win+X → *Terminal (Admin)* or *Windows PowerShell (Admin)*) and run the [quick start](#quick-start) command there. The script then does not need to restart.
+- Do not turn off the antivirus and do not add `powershell.exe` to its exclusions.
+- Report the false positive to the antivirus vendor and in [Issues](https://github.com/coinman-dev/AdobeAudition-RU/issues).
+
+The script's code is open, the translation files are verified by SHA256, and *Remove the Russian language* reverts everything the script changed.
 
 ## Parameters
 
