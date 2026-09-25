@@ -4,6 +4,7 @@
 
 [![Adobe Audition 2026+](https://img.shields.io/badge/Adobe%20Audition-2026%2B-9999FF.svg)](#requirements)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207-5391FE.svg)](#requirements)
+[![Downloads](https://img.shields.io/github/downloads/coinman-dev/AdobeAudition-RU/total.svg)](https://github.com/coinman-dev/AdobeAudition-RU/releases/latest)
 
 **AdobeAudition-RU** adds a Russian user interface to an installed Adobe Audition 2026 or later. It is a real `ru_RU` language, not Russian text placed in the Spanish or another language slot. A single PowerShell script installs it, switches the language and fully restores the original state.
 
